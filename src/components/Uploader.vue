@@ -6,13 +6,12 @@
     </div>
 
     <div class="uploadFiles">
-      <button id="btn" v-on:click="uploadFiles()">Upload</button>
+      <button id="btn" v-on:click="uploadFiles()">{{ currentUpload }}</button>
     </div>
-
 
       <div class="items">
 
-        <div class="">
+        <div>
           <label>
             <input type="file" id="files" ref="files" accept="image/jpeg, image/png, application/pdf" multiple v-on:change="handleFilesUpload()"/>
           </label>
@@ -29,56 +28,52 @@
 
       </div>
 
-
-
-
   </div>
 </template>
 
 <script>
   export default {
-    /*
-      Defines the data used by the component
-    */
+
     data(){
       return {
-        files: [],
-        uploadPercentage: 0
+        isUpload: false, // проверка, загружены ли файлы
+        files: [],  // загружаемые файлы
+        uploadPercentage: 0  // процент загрузки фаайла
+
       }
     },
     /*
-      Defines the method used by the component
+      определяет действие кнопки 'btn'
     */
-    methods: {
-
-    progressUpload(){
-      var xhr = new XMLHttpRequest();
-
-      // обработчик для отправки
-      xhr.upload.onprogress = function(event) {
-        log(event.loaded + ' / ' + event.total);
+    computed: {
+      currentUpload (){
+        return this.isUpload ? 'post' : 'upload'
       }
     },
+
+    methods: {
+
       uploadFiles(){
+        /*
+          проверка, необходимо загружать, или делать запрост POST
+        */
         if(!this.isUpload){
           this.$refs.files.click();
-
           }
         else {
           /*
-            Submits files to the server
+            отправка файлов на сервер
           */
           let formData = new FormData()
           /*
-            Iteate over any file sent over appending the files
-            to the form data.
+           перебор всех файлов для отправки
           */
           for( var i = 0; i < this.files.length; i++ ){
             let file = this.files[i];
             formData.append('files[' + i + ']', this.file);
           }
           /*
-            Make the request to the POST /select-files URL
+            создание POST запроса на http://example.com/upload
           */
           axios.post( 'http://example.com/upload',
             formData,
@@ -86,70 +81,77 @@
               headers: {
                   'Content-Type': 'multipart/form-data'
               },
+              /*
+                отслеживание загрузки файла (в процентах)
+              */
               onUploadProgress: function ( progressEvent ){
                 this.uploadPercentage = parseInt(Math.round(progressEvent.loaded / progressEvent.total)*100);
               }.bind(this)
             }
           ).then(function(){
             console.log('SUCCESS!!');
-            this.files = []
-
           })
           .catch(function(){
             console.log('FAILURE!!');
           });
 
-
           this.isUpload = false
+          this.files = []
         }
       },
-
-     dragAddFiles(file) {
-     let droppedFiles = file.dataTransfer.files;
-
-     if(!droppedFiles) return;
-     // this tip, convert FileList to array
-     this.isUpload = true;
-     ([...droppedFiles]).forEach(f => {
-       let ext = f.name.split('.').pop()
-         if (ext == 'pdf' || ext == 'jpg' || ext == 'png') {
-           this.files.push(f);
-         }
-        });
-      },
-
-
-
       /*
-        Handles the uploading of files
+        drag n drop загрузка
+      */
+     dragAddFiles(file) {
+       let droppedFiles = file.dataTransfer.files;
+
+       if(!droppedFiles) return;
+       /*
+          конвертирует список файлов в массив
+       */
+       ([...droppedFiles]).forEach(f => {
+         let ext = f.name.split('.').pop()
+           if (ext == 'pdf' || ext == 'jpg' || ext == 'png') { // фильтр допустимых расширений
+             this.files.push(f);
+           }
+          });
+          this.isUpload = true;
+      },
+      /*
+        управляет самой загрзкой файлов
       */
       handleFilesUpload(){
-      //  this.files = this.$refs.files.files;
-      //  this.isUpload = true;
-
-        // + drag n drop
-
+        /*
+          + drag n drop
+        */
         var uploadedFiles = this.$refs.files.files;
-        this.isUpload = true;
 
-
-
-          //Adds the uploaded file to the files array
-
+        if (uploadedFiles.length == 0) return;
+        /*
+          добавление загруженных файлов в массив
+        */
         for( var i = 0; i < uploadedFiles.length; i++ ){
           this.files.push( uploadedFiles[i] );
         }
+        this.isUpload = true;
       },
       /*
-        Removes a select file the user has uploaded
+        удаление выбранного файла из списка
       */
       removeFile( i ){
+        /*
+          при удалении последнего файла из списка => переход в режим ожиданя файлов
+        */
+        if (i == 0){
+          if (this.files.length == 1){
+            this.isUpload = false;
+          }
+        }
         this.files.splice( i, 1 );
       }
     }
   }
 </script>
-
 
 <style>
   *{
@@ -196,11 +198,13 @@
       font-weight: 500;
       font-size: 20px;
       transition: .5s;
+
   }
   button:hover{
     cursor: pointer;
     background: #009900;
     color: #fff;
+
   }
   .tabFiles{
     margin: 0 auto;
@@ -227,7 +231,13 @@
   span.remove-file:hover{
     color: red;
   }
+  /*
+  сили для
+  */
 @media (max-device-width: 800px) {
+  #app{
+    min-height: 100vh;
+  }
   .drop{
     display: none;
   }
